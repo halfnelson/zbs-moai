@@ -12,6 +12,7 @@ ide.filetree = {
   projdirlist = {},
   projdirpartmap = {},
   projtreeCtrl = nil,
+  projtreeData = {},
   imglist = ide:CreateImageList("PROJECT",
     "FOLDER", "FILE-KNOWN", "FILE-NORMAL", "FILE-NORMAL-START",
     "FOLDER-MAPPED"),
@@ -88,7 +89,21 @@ local function treeAddDir(tree,parent_id,rootdir)
         curr = (curr
           and tree:InsertItem(parent_id, curr, name, icon)
           or tree:PrependItem(parent_id, name, icon))
-        if isdir then tree:SetItemHasChildren(curr, FileDirHasContent(file)) end
+        if isdir then 
+          tree:SetItemHasChildren(curr, FileDirHasContent(file)) 
+        end
+        
+        local startfile = GetFullPathIfExists(FileTreeGetDir(),
+                          filetree.settings.startfile[FileTreeGetDir()])
+         
+        filetree.projtreeData[curr:GetValue()] = { 
+           isDir = isdir,
+           isMapped = dirmapped[file] and true,
+           isKnown = (not isdir) and GetSpec(GetFileExt(name)) and true,
+           isStartFile = startfile and startfile == name
+        }
+        local d = filetree.projtreeData[curr:GetValue()]
+        d.isOther = not d.isDir and not d.isMapped and not d.isKnown and not d.isStartFile
       end
       if curr:IsOk() then cache[iscaseinsensitive and name:lower() or name] = curr end
     end
@@ -116,6 +131,7 @@ end
 
 local function treeSetRoot(tree,rootdir)
   tree:DeleteAllItems()
+  filetree.projtreeData = {}
   if (not wx.wxDirExists(rootdir)) then return end
 
   local root_id = tree:AddRoot(rootdir, image.DIRECTORY)
@@ -164,13 +180,13 @@ end
 local function treeSetConnectorsAndIcons(tree)
   tree:AssignImageList(filetree.imglist)
 
-  local function isIt(item, imgtype) return tree:GetItemImage(item) == imgtype end
+  local function isIt(item, key) return filetree.projtreeData[item:GetValue()][key] end
 
-  function tree:IsDirectory(item_id) return isIt(item_id, image.DIRECTORY) end
-  function tree:IsDirMapped(item_id) return isIt(item_id, image.DIRECTORYMAPPED) end
-  function tree:IsFileKnown(item_id) return isIt(item_id, image.FILEKNOWN) end
-  function tree:IsFileOther(item_id) return isIt(item_id, image.FILEOTHER) end
-  function tree:IsFileStart(item_id) return isIt(item_id, image.FILEOTHERSTART) end
+  function tree:IsDirectory(item_id) return isIt(item_id, 'isDir') end
+  function tree:IsDirMapped(item_id) return isIt(item_id, 'isMapped') end
+  function tree:IsFileKnown(item_id) return isIt(item_id, 'isKnown') end
+  function tree:IsFileOther(item_id) return isIt(item_id, 'isOther') end
+  function tree:IsFileStart(item_id) return isIt(item_id, 'isStartFile') end
   function tree:IsRoot(item_id) return not tree:GetItemParent(item_id):IsOk() end
 
   function tree:FindItem(match)
@@ -428,6 +444,8 @@ local function treeSetConnectorsAndIcons(tree)
       local item_id = tree:FindItem(startfile)
       if item_id and item_id:IsOk() then
         tree:SetItemImage(item_id, getIcon(tree:GetItemFullName(item_id)))
+        filetree.projtreeData[item_id:GetValue()].isStartFile = false
+        filetree.projtreeData[item_id:GetValue()].isKnown = true
       end
     end
   end
@@ -437,6 +455,8 @@ local function treeSetConnectorsAndIcons(tree)
     local startfile = tree:GetItemFullName(item_id):gsub(project, "")
     filetree.settings.startfile[project] = startfile
     tree:SetItemImage(item_id, getIcon(tree:GetItemFullName(item_id)))
+    filetree.projtreeData[item_id:GetValue()].isStartFile = true
+    filetree.projtreeData[item_id:GetValue()].isKnown = false
   end
 
   tree:Connect(ID_NEWFILE, wx.wxEVT_COMMAND_MENU_SELECTED,
@@ -706,6 +726,15 @@ local function treeSetConnectorsAndIcons(tree)
         event:Allow()
       end
     end)
+  
+  tree:Connect(wx.wxEVT_COMMAND_TREE_DELETE_ITEM,
+    function (event)
+      local item = event:GetItem()
+      filetree.projtreeData[item:GetValue()] = nil
+    end)
+  
+  
+  
   tree:Connect(wx.wxEVT_COMMAND_TREE_END_DRAG,
     function (event)
       local itemdst = event:GetItem()

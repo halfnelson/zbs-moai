@@ -1,4 +1,15 @@
+--[[ note to self, to dump table to string for config
+local md = require("lualibs.mobdebug.mobdebug")
+local function tableToLua(t, varname)
+  md.line(t , {indent='  ', comment=false, name =varname} )
+end
 
+todo, use imagelist:Add(bmp) to add to ide.filetree.imglist, use 16x16 and create bitmap using wx.wxBitmap(file) on plugin startup
+add getIcon hook for plugins to filetree.lua
+
+
+
+]]
 
 return {
   name = "Moai Extensions",
@@ -8,16 +19,5 @@ return {
   dependencies = 0.51,
 
 
-  onMenuFiletree = function(self, menu, tree, event)
-    local item_id = event:GetItem()
-    local name = tree:GetItemFullName(item_id)
-    
-    if (tree:IsDirectory(item_id) ) then
-      local id = ID(self.fname .. ".openimage")
-      menu:AppendSeparator()
-      menu:Append(id, ("Open Image (%d x %d)"):format(width, height))
-      tree:Connect(id, wx.wxEVT_COMMAND_MENU_SELECTED,
-        function() fileShow(name) end)
-    end
-  end,
+  
 }
