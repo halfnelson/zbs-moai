@@ -16,7 +16,7 @@ ide.filetree = {
   imglist = ide:CreateImageList("PROJECT",
     "FOLDER", "FILE-KNOWN", "FILE-NORMAL", "FILE-NORMAL-START",
     "FOLDER-MAPPED"),
-  settings = {extensionignore = {}, startfile = {}, mapped = {}},
+  settings = {extensionignore = {}, startfile = {}, mapped = {}, iconCallback = function() return false end},
 }
 local filetree = ide.filetree
 local iscaseinsensitive = wx.wxFileName("A"):SameAs(wx.wxFileName("a"))
@@ -38,7 +38,15 @@ local function getIcon(name, isdir)
   local known = GetSpec(GetFileExt(name))
   local icon = isdir and image.DIRECTORY or known and image.FILEKNOWN or image.FILEOTHER
   if startfile and startfile == name then icon = image.FILEOTHERSTART end
-  return icon
+  
+  
+    local newicon = filetree.settings.iconCallback(name,isdir)
+    if newicon then
+      icon = newicon
+    end
+  
+  
+  return  icon
 end
 
 local function treeAddDir(tree,parent_id,rootdir)
@@ -180,7 +188,7 @@ end
 local function treeSetConnectorsAndIcons(tree)
   tree:AssignImageList(filetree.imglist)
 
-  local function isIt(item, key) return filetree.projtreeData[item:GetValue()][key] end
+  local function isIt(item, key) return filetree.projtreeData[item:GetValue()] and filetree.projtreeData[item:GetValue()][key] end
 
   function tree:IsDirectory(item_id) return isIt(item_id, 'isDir') end
   function tree:IsDirMapped(item_id) return isIt(item_id, 'isMapped') end
@@ -422,12 +430,22 @@ local function treeSetConnectorsAndIcons(tree)
   end
 
   -- handle context menu
-  local function addItem(item_id, name, img)
+  local function addItem(item_id, name, newdir)
     local isdir = tree:IsDirectory(item_id)
     local parent = isdir and item_id or tree:GetItemParent(item_id)
     if isdir then tree:Expand(item_id) end -- expand to populate if needed
+    local img = newdir and image.DIRECTORY or image.FILEOTHER
+    
 
     local item = tree:PrependItem(parent, name, img)
+    
+    filetree.projtreeData[item:GetValue()] = { 
+           isDir = newdir,
+           isMapped = false,
+           isKnown = false,
+           isStartFile = false,
+           isOther = not newdir
+        }
     tree:SetItemHasChildren(parent, true)
     -- temporarily disable expand as we don't need this node populated
     tree:SetEvtHandlerEnabled(false)
@@ -461,11 +479,11 @@ local function treeSetConnectorsAndIcons(tree)
 
   tree:Connect(ID_NEWFILE, wx.wxEVT_COMMAND_MENU_SELECTED,
     function()
-      tree:EditLabel(addItem(tree:GetSelection(), empty, image.FILEOTHER))
+      tree:EditLabel(addItem(tree:GetSelection(), empty, false))
     end)
   tree:Connect(ID_NEWDIRECTORY, wx.wxEVT_COMMAND_MENU_SELECTED,
     function()
-      tree:EditLabel(addItem(tree:GetSelection(), empty, image.DIRECTORY))
+      tree:EditLabel(addItem(tree:GetSelection(), empty, true))
     end)
   tree:Connect(ID_RENAMEFILE, wx.wxEVT_COMMAND_MENU_SELECTED,
     function() tree:EditLabel(tree:GetSelection()) end)
