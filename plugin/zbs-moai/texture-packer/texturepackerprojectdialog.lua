@@ -13,6 +13,7 @@ local loadDialog = function(project)
     props:bindToProject()
     props:bindPopupMenu()
     props:bindAddButton()
+    props:bindPackButton()
     --return our new item
     return props
  end
@@ -31,6 +32,12 @@ function Dialog:AddFolder()
   dlg:Destroy()
 end
 
+function Dialog:bindPackButton()
+  local butt = self.UI.m_run
+  butt:Connect(wx.wxEVT_COMMAND_BUTTON_CLICKED, function() 
+      self.Project:packAll(function(i) DisplayOutputLn(i) end)
+  end)
+end
 
 function Dialog:bindAddButton()
   local butt = self.UI.m_add
@@ -48,7 +55,7 @@ function Dialog:bindPopupMenu()
       ctl:SelectItem(item_id)
       local menu = wx.wxMenu({
         { texturePackerConfigMenuId, TR("Edit Config...") },
-        { texturePackerRemoveMenuId, TR("Remove Folder") }
+        { texturePackerRemoveMenuId, TR("Remove Atlas") }
         
       })
     

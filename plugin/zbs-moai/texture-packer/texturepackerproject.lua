@@ -2,6 +2,14 @@
  Helper functions
 --]]
 
+local function thisDir()
+  local info = debug.getinfo(1,'S');
+  local fname = info.source:gsub("@","")
+  local dir = wx.wxFileName(fname):GetPath()
+  return dir
+end
+
+
 local md = require("mobdebug.mobdebug")
 local function tableToLua(t)
   return md.line(t , {indent='  ', comment=false} )
@@ -276,11 +284,19 @@ end
 function Project:launchConfigEditor(name)
   
   local textureAtlasFolder = self:rootTextureAtlasFolderFor(name) or self:makeRelative(name)
-  local settingsDialog = require("texturepackerdialog")(self.TextureAtlasDirs[textureAtlasFolder] or {}, self:getCombinedConfig(name))
+  
+  local inputSettings = self.TextureAtlasDirs[textureAtlasFolder] or {}
+  if (inputSettings.OutputFolder) then
+    inputSettings.OutputFolder = self:makeAbsolute(inputSettings.OutputFolder)
+  end
+  
+  local settingsDialog = require("texturepackerdialog")(inputSettings, self:getCombinedConfig(name))
   local result = settingsDialog.TexturePackerSettings:ShowModal()
   if result == 0 then
     
     local outputSettings = settingsDialog.GetOutputSettings()
+    --patch outputfolder to be relative
+    outputSettings.OutputFolder = self:makeRelative(outputSettings.OutputFolder)
     self.TextureAtlasDirs[textureAtlasFolder] = outputSettings
     self:saveConfig()
     
@@ -314,6 +330,33 @@ function Project:removeAtlasAt(dir)
   local name =self:rootTextureAtlasFolderFor(dir)
   self.TextureAtlasDirs[name] = nil
   self:saveConfig()
+end
+
+function Project:packFolder(dir,outputCallback)
+  
+  local inputFolder = self:makeAbsolute(dir)
+  local name =self:rootTextureAtlasFolderFor(inputFolder)
+  local settings = self.TextureAtlasDirs[name]
+  local outputFolder = self:makeAbsolute(settings.OutputFolder)
+  
+  local cmd = '"'..self.JavaBin..'"'.." -jar "..thisDir()..getPathSeparator().."runnable-texturepacker.jar "..inputFolder.." "..outputFolder.." "..settings.PackName
+  DisplayOutputLn(wx.wxGetCwd(), cmd)
+  local f = io.popen(cmd, 'r')
+  while true do
+    local s = f:read('*line')
+    if s == nil then break end
+    if outputCallback then outputCallback(s) end
+  end
+  
+end
+
+
+
+function Project:packAll(outputCallback)
+  for f,_ in pairs(self.TextureAtlasDirs) do
+    outputCallback("Processing Folder "..f)
+    self:packFolder(f,outputCallback)
+  end
 end
 
 return ProjectManager
