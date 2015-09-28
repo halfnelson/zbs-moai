@@ -1,59 +1,127 @@
-----------------------------------------------------------------------------
--- Lua code generated with wxFormBuilder (version Jun 17 2015)
--- http://www.wxformbuilder.org/
-----------------------------------------------------------------------------
 
--- Load the wxLua module, does nothing if running from wxLua, wxLuaFreeze, or wxLuaEdit
-package.cpath = package.cpath..";./?.dll;./?.so;../lib/?.so;../lib/vc_dll/?.dll;../lib/bcc_dll/?.dll;../lib/mingw_dll/?.dll;"
-require("wx")
+local Dialog = {}
+local Dialog_mt = { __index = Dialog }
 
-UI = {}
+local loadDialog = function(project)
+    --create new project object
+    local props = { 
+       Project = project,
+       UI = require('texturepackerprojectdialog-ui')()
+    }
+    setmetatable(props, Dialog_mt)
+    props:createBindings()
+    props:bindToProject()
+    props:bindPopupMenu()
+    props:bindAddButton()
+    --return our new item
+    return props
+ end
 
-
--- create TexturePackerProject
-UI.TexturePackerProject = wx.wxDialog (wx.NULL, wx.wxID_ANY, "Texture Packer Project Settings", wx.wxDefaultPosition, wx.wxSize( 568,290 ), wx.wxDEFAULT_DIALOG_STYLE )
-	UI.TexturePackerProject:SetSizeHints( wx.wxDefaultSize, wx.wxDefaultSize )
-	
-	UI.bSizer1 = wx.wxBoxSizer( wx.wxVERTICAL )
-	
-	UI.bSizer2 = wx.wxBoxSizer( wx.wxHORIZONTAL )
-	
-	UI.m_staticText1 = wx.wxStaticText( UI.TexturePackerProject, wx.wxID_ANY, "Java Binary", wx.wxDefaultPosition, wx.wxDefaultSize, 0 )
-	UI.m_staticText1:Wrap( -1 )
-	UI.bSizer2:Add( UI.m_staticText1, 0, wx.wxALL + wx.wxALIGN_CENTER_VERTICAL, 5 )
-	
-	UI.m_javaBin = wx.wxFilePickerCtrl( UI.TexturePackerProject, wx.wxID_ANY, "", "Select a file", "*.*", wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxFLP_DEFAULT_STYLE )
-	UI.bSizer2:Add( UI.m_javaBin, 1, wx.wxALL, 5 )
-	
-	
-	UI.bSizer1:Add( UI.bSizer2, 0, wx.wxEXPAND, 5 )
-	
-	UI.bSizer3 = wx.wxBoxSizer( wx.wxHORIZONTAL )
-	
-	UI.m_staticText2 = wx.wxStaticText( UI.TexturePackerProject, wx.wxID_ANY, "Folders To Pack:", wx.wxDefaultPosition, wx.wxDefaultSize, 0 )
-	UI.m_staticText2:Wrap( -1 )
-	UI.bSizer3:Add( UI.m_staticText2, 0, wx.wxALIGN_BOTTOM + wx.wxALL, 5 )
-	
-	
-	UI.bSizer3:Add( 0, 0, 1, wx.wxEXPAND, 5 )
-	
-	UI.m_add = wx.wxButton( UI.TexturePackerProject, wx.wxID_ANY, "Add", wx.wxDefaultPosition, wx.wxDefaultSize, 0 )
-	UI.bSizer3:Add( UI.m_add, 0, wx.wxEXPAND + wx.wxTOP + wx.wxRIGHT + wx.wxLEFT, 5 )
-	
-	UI.m_run = wx.wxButton( UI.TexturePackerProject, wx.wxID_ANY, "Pack All", wx.wxDefaultPosition, wx.wxDefaultSize, 0 )
-	UI.bSizer3:Add( UI.m_run, 0, wx.wxTOP + wx.wxRIGHT + wx.wxLEFT, 5 )
-	
-	
-	UI.bSizer1:Add( UI.bSizer3, 0, wx.wxEXPAND, 5 )
-	
-	UI.m_folders = wx.wxTreeCtrl( UI.TexturePackerProject, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxTR_DEFAULT_STYLE+wx.wxVSCROLL )
-	UI.bSizer1:Add( UI.m_folders, 1, wx.wxEXPAND + wx.wxBOTTOM + wx.wxRIGHT + wx.wxLEFT, 5 )
-	
-	
-	UI.TexturePackerProject:SetSizer( UI.bSizer1 )
-	UI.TexturePackerProject:Layout()
-	
-	UI.TexturePackerProject:Centre( wx.wxBOTH )
+local texturePackerConfigMenuId = ID("zbs-moai.textureMapperConfigMenu")
+local texturePackerRemoveMenuId = ID("zbs-moai.textureMapperRemoveMenu")
+function Dialog:AddFolder()
+  local dlg = wx.wxDirDialog(self.UI.TexturePackerProject, "Select Atlas Folder",self.Project.ProjectDir)
+  local res = dlg:ShowModal()
+  if res == wx.wxID_OK then
+     local path = dlg:GetPath()
+     if self.Project:launchConfigEditor(path) then
+       self:bindToProject()
+     end
+  end
+  dlg:Destroy()
+end
 
 
---wx.wxGetApp():MainLoop()
+function Dialog:bindAddButton()
+  local butt = self.UI.m_add
+  butt:Connect(wx.wxEVT_COMMAND_BUTTON_CLICKED, function() 
+      self:AddFolder()
+  end)
+end
+
+
+function Dialog:bindPopupMenu()
+  local ctl = self.UI.m_folders
+  ctl:Connect(wx.wxEVT_COMMAND_TREE_ITEM_MENU,
+    function (event)
+      local item_id = event:GetItem()
+      ctl:SelectItem(item_id)
+      local menu = wx.wxMenu({
+        { texturePackerConfigMenuId, TR("Edit Config...") },
+        { texturePackerRemoveMenuId, TR("Remove Folder") }
+        
+      })
+    
+      menu:Connect(texturePackerConfigMenuId, wx.wxEVT_COMMAND_MENU_SELECTED, function()
+         
+         local dir= ctl:GetItemText(item_id) 
+         local parent = ctl:GetItemParent(item_id)
+         if parent:GetValue() ~= self.root:GetValue() then
+           dir = ctl:GetItemText(parent).."/"..dir
+         end
+         dir = self.Project:makeAbsolute(dir)
+         self.Project:launchConfigEditor(dir)
+      end)
+    
+      menu:Connect(texturePackerRemoveMenuId, wx.wxEVT_COMMAND_MENU_SELECTED, function()
+         
+         local dir= ctl:GetItemText(item_id) 
+         local parent = ctl:GetItemParent(item_id)
+         if parent:GetValue() ~= self.root:GetValue() then
+           dir = ctl:GetItemText(parent).."/"..dir
+         end
+         dir = self.Project:makeAbsolute(dir)
+         self.Project:removeAtlasAt(dir)
+         self:bindToProject()
+      end)
+    
+      ctl:PopupMenu(menu)
+    end)
+end
+
+function Dialog:createBindings() 
+  self.Binder = require('wxbinder').create()
+  self.Binder:bindFilePicker('JavaBin', self.UI.m_javaBin)
+  local this = self
+  self.Binder:addBinding('TextureAtlasDirs', self.UI.m_folders, 
+    function(var, widget) 
+      this:UpdateFolderList(var,widget) 
+    end, 
+    function() 
+      return false 
+    end)
+end
+
+function Dialog:bindToProject() 
+  self.Binder:setValues(self.Project)
+end
+
+function Dialog:GetValues() 
+  return self.Binder:getValues()
+end
+
+function Dialog:UpdateFolderList(folders, tree)
+  tree:DeleteAllItems()
+  local root = tree:AddRoot("Texture Packed Folders")
+  self.root = root
+  for folder,settings in pairs(folders) do
+    local parent = tree:AppendItem(root, folder)
+    local subdirs = self.Project:getSubFoldersOf(folder)
+    for _,subdir in ipairs(subdirs) do
+      tree:AppendItem(parent, subdir)
+    end
+  end
+  tree:CollapseAll()
+  tree:Expand(root)
+end
+
+function Dialog:ShowModal() 
+  return self.UI.TexturePackerProject:ShowModal()
+end
+
+function Dialog:Destroy() 
+   self.UI.TexturePackerProject:Destroy()
+end
+
+
+return loadDialog

@@ -158,6 +158,30 @@ function Project:makeRelative(name)
   return dir:GetFullPath(wx.wxPATH_UNIX)
 end
 
+function Project:makeAbsolute(name)
+  local f = wx.wxFileName.DirName(name:gsub("/",getPathSeparator()))
+  f:MakeAbsolute(self.ProjectDir..getPathSeparator())
+  return f:GetFullPath()
+end
+
+function Project:getSubFoldersOf(name)
+  local f = self:makeAbsolute(name)
+  local subdirs = {}
+  if not wx.wxDir.Exists(f) then return subdirs end
+  
+  local d = wx.wxDir(f)
+  if not d:HasSubDirs() then return subdirs end
+  
+  local continue, dir = d:GetFirst("", wx.wxDIR_DIRS)
+  while continue do
+    table.insert(subdirs,dir)      
+    continue, dir = d:GetNext()
+  end
+  
+  return subdirs
+end
+
+
 function Project:loadConfig()
   local f = wx.wxFileName.DirName(self.ProjectDir)
   f:SetFullName("texturepacker-config.lua")
@@ -185,7 +209,7 @@ end
 
 function Project:rootTextureAtlasFolderFor(name)
   for r,_ in pairs(self.TextureAtlasDirs) do
-       local fullpath = self.ProjectDir..getPathSeparator()..(r:gsub("/",getPathSeparator()))
+       local fullpath = self:makeAbsolute(r)  --  self.ProjectDir..getPathSeparator()..(r:gsub("/",getPathSeparator()))
        if isSameOrSubpathOf(fullpath,name) then
          return r
        end
@@ -251,7 +275,7 @@ end
 
 function Project:launchConfigEditor(name)
   
-  local textureAtlasFolder = self:rootTextureAtlasFolderFor(name) or name
+  local textureAtlasFolder = self:rootTextureAtlasFolderFor(name) or self:makeRelative(name)
   local settingsDialog = require("texturepackerdialog")(self.TextureAtlasDirs[textureAtlasFolder] or {}, self:getCombinedConfig(name))
   local result = settingsDialog.TexturePackerSettings:ShowModal()
   if result == 0 then
@@ -268,6 +292,18 @@ function Project:launchConfigEditor(name)
   settingsDialog.TexturePackerSettings:Destroy()
   return result == 0
 end
+
+
+function Project:launchProjectEditor()
+  local dlg = require('texturepackerprojectdialog')(self)
+  dlg:ShowModal()
+  local res = dlg:GetValues()
+  self.JavaBin = res.JavaBin
+  self:saveConfig()
+  dlg:Destroy()
+end
+
+
 
 function Project:newAtlasAt(dir)
   local name = self:makeRelative(dir)

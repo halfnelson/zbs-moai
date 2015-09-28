@@ -75,7 +75,8 @@ local function onMenuFiletree(self, menu, tree, event)
 end
 
 local function showConfig()
-  DisplayOutputLn("Show config now")
+  project:launchProjectEditor()
+  --DisplayOutputLn("Show config now")
 end
 
 
