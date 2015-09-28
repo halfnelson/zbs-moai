@@ -11,6 +11,11 @@ add getIcon hook for plugins to filetree.lua
 
 ]]
 --
+
+local textureMapperMenuId = ID("zbs-moai.texturemappermenu")
+local textureMapperRemoveMenuId = ID("zbs-moai.texturemappermenuremove")
+local texturePackerConfigId = ID("zbs-moai.textureMapperConfig")
+
 local md = require("lualibs.mobdebug.mobdebug")
 local function tableToLua(t)
   return md.line(t , {indent='  ', comment=false} )
@@ -288,8 +293,7 @@ local function onFiletreeGetIcon(name, isdir)
 end
 
 
-local textureMapperMenuId = ID("zbs-moai.texturemappermenu")
-local textureMapperRemoveMenuId = ID("zbs-moai.texturemappermenuremove")
+
 local function onMenuFiletree(self, menu, tree, event)
   local item_id = event:GetItem()
     local name = tree:GetItemFullName(item_id)
@@ -331,6 +335,10 @@ local function onMenuFiletree(self, menu, tree, event)
   end
 end
 
+local function showConfig()
+  DisplayOutputLn("Show config now")
+end
+
 
 local function onRegister () 
    local ico = wx.wxBitmap("zbs-moai/res/TEXTUREATLAS.png")
@@ -343,6 +351,15 @@ local function onRegister ()
    ide.filetree.settings.iconCallback = function(name,isdir)
       return onFiletreeGetIcon(name,isdir) or oldcallback(name,isdir)
    end
+   
+   --add our config menu to project tab
+   --get project menu
+   local projectMenuId = ide.frame.menuBar:FindMenu(TR("&Project"))
+   local projectMenu = ide.frame.menuBar:GetMenu(projectMenuId)
+   
+   --append
+   projectMenu:Append(texturePackerConfigId, TR("Configure Texure Packer..."), TR("Launch Texture Packer Configuration"))
+   projectMenu:Connect(texturePackerConfigId, wx.wxEVT_COMMAND_MENU_SELECTED, showConfig)
 end
 
 return {
