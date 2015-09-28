@@ -573,7 +573,6 @@ UI.TexturePackerSettings = wx.wxDialog (wx.NULL, wx.wxID_ANY, "Texture Packer Se
   
   local function bindUIFrom(settings)
     for _,v in pairs(UI.Bindings) do
-      DisplayOutputLn("setting ",v.name)
       v.setter(settings[v.name],v.widget)
     end
   end
