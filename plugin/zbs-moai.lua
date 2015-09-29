@@ -4,7 +4,8 @@ package.path =  package.path .. ';zbs-moai/texture-packer/?.lua'
 local textureMapperMenuId = ID("zbs-moai.texturemappermenu")
 local textureMapperRemoveMenuId = ID("zbs-moai.texturemappermenuremove")
 local texturePackerConfigId = ID("zbs-moai.textureMapperConfig")
-
+local texturePackerLaunchId = ID("zbs-moai.texturePackerLaunch")
+local texturePackerLaunchPopupId = ID("zbs-moai.texturePackerLaunchPopup")
 local TEXTUREATLAS, TEXTUREATLASCONF
 
 
@@ -15,7 +16,20 @@ local function onProjectPreLoad(self, projdir)
    project = ProjectManager.loadProject(projdir)
 end
     
+    
+local function updateTreeImages()
+  for dir,_ in pairs(project.TextureAtlasDirs) do
+    local item = ide.filetree.projtreeCtrl:FindItem(dir) 
+    if item then
+      ide.filetree.projtreeCtrl:SetItemImage(item, TEXTUREATLAS)
+    end
+  end
+end
 
+
+local function onProjectLoad(self, projdir) 
+   updateTreeImages()
+end
 
 
 local function onFiletreeGetIcon(name, isdir)
@@ -49,10 +63,20 @@ local function onMenuFiletree(self, menu, tree, event)
         function() 
             if project:newAtlasAt(name) then
               tree:SetItemImage(item_id,TEXTUREATLAS)
-              tree:RefreshChildren()
+              tree:Refresh()
             end
         end)
     else
+       menu:Append(texturePackerLaunchPopupId, "Build Texture Atlas")
+      menu:Enable(texturePackerLaunchPopupId, true)
+
+      tree:Connect(texturePackerLaunchPopupId, wx.wxEVT_COMMAND_MENU_SELECTED,
+        function() 
+          DisplayOutputLn("Building Texture Atlas for "..name)
+          project:packFolder(name,function(i) DisplayOutputLn(i) end)
+        end)
+      
+      
       menu:Append(textureMapperMenuId, "Configure Texture Atlas")
       menu:Enable(textureMapperMenuId, true)
 
@@ -68,17 +92,39 @@ local function onMenuFiletree(self, menu, tree, event)
         function() 
           project:removeAtlasAt(name)
           tree:SetItemImage(item_id,0)
-          tree:RefreshChildren()
+          tree:Refresh()
         end)
     end
   end
 end
 
 local function showConfig()
+  --cache old values for delete detection
+  local oldDirs = {}
+  for k,v in pairs(project.TextureAtlasDirs) do
+    oldDirs[k] = true
+  end
   project:launchProjectEditor()
+  local newDirs = project.TextureAtlasDirs
+  
+  for k,v in pairs(oldDirs) do
+    if not newDirs[k] then
+      local item = ide.filetree.projtreeCtrl:FindItem(k) 
+       if item then
+        ide.filetree.projtreeCtrl:SetItemImage(item, 0)
+       end
+    end
+  end
+  
+  
+  
+  updateTreeImages()
+  ide.filetree.projtreeCtrl:Refresh()
   --DisplayOutputLn("Show config now")
 end
 
+local oldIsDirFunc
+local oldExpanderFunc
 
 local function onRegister () 
    local ico = wx.wxBitmap("zbs-moai/res/TEXTUREATLAS.png")
@@ -87,11 +133,21 @@ local function onRegister ()
    ico = wx.wxBitmap("zbs-moai/res/TEXTUREATLASCONF.png")
    TEXTUREATLASCONF = ide.filetree.imglist:Add(ico)
    
-   local oldcallback = ide.filetree.settings.iconCallback
-   ide.filetree.settings.iconCallback = function(name,isdir)
-      return onFiletreeGetIcon(name,isdir) or oldcallback(name,isdir)
+   --patch tree
+   oldIsDirFunc = ide.filetree.projtreeCtrl.IsDirectory
+   ide.filetree.projtreeCtrl.IsDirectory = function(self, item_id)
+      return ide.filetree.projtreeCtrl:GetItemImage(item_id) == 0 or ide.filetree.projtreeCtrl:GetItemImage(item_id) == TEXTUREATLAS
    end
    
+   
+   local oldExpanderFunc
+   ide.filetree.projtreeCtrl:Connect(wx.wxEVT_COMMAND_TREE_ITEM_EXPANDED,
+    function (event)
+      updateTreeImages()
+      ide.filetree.projtreeCtrl:Refresh()
+      event:Skip(true)
+    end)
+
    --add our config menu to project tab
    --get project menu
    local projectMenuId = ide.frame.menuBar:FindMenu(TR("&Project"))
@@ -100,17 +156,30 @@ local function onRegister ()
    --append
    projectMenu:Append(texturePackerConfigId, TR("Configure Texure Packer..."), TR("Launch Texture Packer Configuration"))
    projectMenu:Connect(texturePackerConfigId, wx.wxEVT_COMMAND_MENU_SELECTED, showConfig)
+   
+    projectMenu:Append( texturePackerLaunchId, TR("Execute Texture Packer"), TR("Execute Texture Packer"))
+   projectMenu:Connect( texturePackerLaunchId, wx.wxEVT_COMMAND_MENU_SELECTED, 
+      function()
+        DisplayOutputLn("Running Texture Packer...")
+        project:packAll(function(i) DisplayOutputLn(i) end)
+      end
+     )
+   
+  
+    --TODO add toolbar icon to repack using toolBar:AddTool(id, "", bitmap, TR("description")) use GetWidth on bmp from GetBitmap from ide.frame.toolbar
+    --image can be 24 or 16
+   
 end
 
 return {
-  name = "Texture Packer Support",
+  name = "GDX Texture Packer",
   description = "Integrates libgdx TexturePacker with ZBS",
   author = "David Pershouse",
   version = 0.1,
   dependencies = 0.51,
   onRegister = onRegister,
   onMenuFiletree = onMenuFiletree,
-  onProjectPreLoad = onProjectPreLoad
-
+  onProjectPreLoad = onProjectPreLoad,
+  onProjectLoad = onProjectLoad
   
 }

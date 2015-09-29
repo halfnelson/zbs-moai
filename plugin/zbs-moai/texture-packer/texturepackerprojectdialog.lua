@@ -46,9 +46,27 @@ function Dialog:bindAddButton()
   end)
 end
 
+function Dialog:launchConfigForTreeItem(item_id)
+  local ctl = self.UI.m_folders
+  local dir= ctl:GetItemText(item_id) 
+  local parent = ctl:GetItemParent(item_id)
+  if parent:GetValue() ~= self.root:GetValue() then
+   dir = ctl:GetItemText(parent).."/"..dir
+  end
+  dir = self.Project:makeAbsolute(dir)
+  self.Project:launchConfigEditor(dir)
+end
+
+
 
 function Dialog:bindPopupMenu()
   local ctl = self.UI.m_folders
+  
+  ctl:Connect(wx.wxEVT_COMMAND_TREE_ITEM_ACTIVATED,function(event)
+             local item_id = event:GetItem()
+             self:launchConfigForTreeItem(item_id)
+  end)
+  
   ctl:Connect(wx.wxEVT_COMMAND_TREE_ITEM_MENU,
     function (event)
       local item_id = event:GetItem()
@@ -60,14 +78,7 @@ function Dialog:bindPopupMenu()
       })
     
       menu:Connect(texturePackerConfigMenuId, wx.wxEVT_COMMAND_MENU_SELECTED, function()
-         
-         local dir= ctl:GetItemText(item_id) 
-         local parent = ctl:GetItemParent(item_id)
-         if parent:GetValue() ~= self.root:GetValue() then
-           dir = ctl:GetItemText(parent).."/"..dir
-         end
-         dir = self.Project:makeAbsolute(dir)
-         self.Project:launchConfigEditor(dir)
+         self:launchConfigForTreeItem(item_id)
       end)
     
       menu:Connect(texturePackerRemoveMenuId, wx.wxEVT_COMMAND_MENU_SELECTED, function()

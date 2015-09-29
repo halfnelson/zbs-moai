@@ -340,7 +340,9 @@ function Project:packFolder(dir,outputCallback)
   local outputFolder = self:makeAbsolute(settings.OutputFolder)
   
   local cmd = '"'..self.JavaBin..'"'.." -jar "..thisDir()..getPathSeparator().."runnable-texturepacker.jar "..inputFolder.." "..outputFolder.." "..settings.PackName
-  DisplayOutputLn(wx.wxGetCwd(), cmd)
+  if outputCallback then
+    outputCallback("running cmd:"..cmd)
+  end
   local f = io.popen(cmd, 'r')
   while true do
     local s = f:read('*line')
