@@ -12,11 +12,10 @@ ide.filetree = {
   projdirlist = {},
   projdirpartmap = {},
   projtreeCtrl = nil,
-  projtreeData = {},
   imglist = ide:CreateImageList("PROJECT",
     "FOLDER", "FILE-KNOWN", "FILE-NORMAL", "FILE-NORMAL-START",
     "FOLDER-MAPPED"),
-  settings = {extensionignore = {}, startfile = {}, mapped = {}, iconCallback = function() return false end},
+  settings = {extensionignore = {}, startfile = {}, mapped = {}},
 }
 local filetree = ide.filetree
 local iscaseinsensitive = wx.wxFileName("A"):SameAs(wx.wxFileName("a"))
@@ -38,15 +37,7 @@ local function getIcon(name, isdir)
   local known = GetSpec(GetFileExt(name))
   local icon = isdir and image.DIRECTORY or known and image.FILEKNOWN or image.FILEOTHER
   if startfile and startfile == name then icon = image.FILEOTHERSTART end
-  
-  
-    local newicon = filetree.settings.iconCallback(name,isdir)
-    if newicon then
-      icon = newicon
-    end
-  
-  
-  return  icon
+  return icon
 end
 
 local function treeAddDir(tree,parent_id,rootdir)
@@ -97,21 +88,7 @@ local function treeAddDir(tree,parent_id,rootdir)
         curr = (curr
           and tree:InsertItem(parent_id, curr, name, icon)
           or tree:PrependItem(parent_id, name, icon))
-        if isdir then 
-          tree:SetItemHasChildren(curr, FileDirHasContent(file)) 
-        end
-        
-        local startfile = GetFullPathIfExists(FileTreeGetDir(),
-                          filetree.settings.startfile[FileTreeGetDir()])
-         
-        filetree.projtreeData[curr:GetValue()] = { 
-           isDir = isdir,
-           isMapped = dirmapped[file] and true,
-           isKnown = (not isdir) and GetSpec(GetFileExt(name)) and true,
-           isStartFile = startfile and startfile == name
-        }
-        local d = filetree.projtreeData[curr:GetValue()]
-        d.isOther = not d.isDir and not d.isMapped and not d.isKnown and not d.isStartFile
+        if isdir then tree:SetItemHasChildren(curr, FileDirHasContent(file)) end
       end
       if curr:IsOk() then cache[iscaseinsensitive and name:lower() or name] = curr end
     end
@@ -139,7 +116,6 @@ end
 
 local function treeSetRoot(tree,rootdir)
   tree:DeleteAllItems()
-  filetree.projtreeData = {}
   if (not wx.wxDirExists(rootdir)) then return end
 
   local root_id = tree:AddRoot(rootdir, image.DIRECTORY)
@@ -188,13 +164,13 @@ end
 local function treeSetConnectorsAndIcons(tree)
   tree:AssignImageList(filetree.imglist)
 
-  local function isIt(item, key) return filetree.projtreeData[item:GetValue()] and filetree.projtreeData[item:GetValue()][key] end
+  local function isIt(item, imgtype) return tree:GetItemImage(item) == imgtype end
 
-  function tree:IsDirectory(item_id) return isIt(item_id, 'isDir') end
-  function tree:IsDirMapped(item_id) return isIt(item_id, 'isMapped') end
-  function tree:IsFileKnown(item_id) return isIt(item_id, 'isKnown') end
-  function tree:IsFileOther(item_id) return isIt(item_id, 'isOther') end
-  function tree:IsFileStart(item_id) return isIt(item_id, 'isStartFile') end
+  function tree:IsDirectory(item_id) return isIt(item_id, image.DIRECTORY) end
+  function tree:IsDirMapped(item_id) return isIt(item_id, image.DIRECTORYMAPPED) end
+  function tree:IsFileKnown(item_id) return isIt(item_id, image.FILEKNOWN) end
+  function tree:IsFileOther(item_id) return isIt(item_id, image.FILEOTHER) end
+  function tree:IsFileStart(item_id) return isIt(item_id, image.FILEOTHERSTART) end
   function tree:IsRoot(item_id) return not tree:GetItemParent(item_id):IsOk() end
 
   function tree:FindItem(match)
@@ -430,22 +406,12 @@ local function treeSetConnectorsAndIcons(tree)
   end
 
   -- handle context menu
-  local function addItem(item_id, name, newdir)
+  local function addItem(item_id, name, img)
     local isdir = tree:IsDirectory(item_id)
     local parent = isdir and item_id or tree:GetItemParent(item_id)
     if isdir then tree:Expand(item_id) end -- expand to populate if needed
-    local img = newdir and image.DIRECTORY or image.FILEOTHER
-    
 
     local item = tree:PrependItem(parent, name, img)
-    
-    filetree.projtreeData[item:GetValue()] = { 
-           isDir = newdir,
-           isMapped = false,
-           isKnown = false,
-           isStartFile = false,
-           isOther = not newdir
-        }
     tree:SetItemHasChildren(parent, true)
     -- temporarily disable expand as we don't need this node populated
     tree:SetEvtHandlerEnabled(false)
@@ -462,8 +428,6 @@ local function treeSetConnectorsAndIcons(tree)
       local item_id = tree:FindItem(startfile)
       if item_id and item_id:IsOk() then
         tree:SetItemImage(item_id, getIcon(tree:GetItemFullName(item_id)))
-        filetree.projtreeData[item_id:GetValue()].isStartFile = false
-        filetree.projtreeData[item_id:GetValue()].isKnown = true
       end
     end
   end
@@ -473,17 +437,15 @@ local function treeSetConnectorsAndIcons(tree)
     local startfile = tree:GetItemFullName(item_id):gsub(project, "")
     filetree.settings.startfile[project] = startfile
     tree:SetItemImage(item_id, getIcon(tree:GetItemFullName(item_id)))
-    filetree.projtreeData[item_id:GetValue()].isStartFile = true
-    filetree.projtreeData[item_id:GetValue()].isKnown = false
   end
 
   tree:Connect(ID_NEWFILE, wx.wxEVT_COMMAND_MENU_SELECTED,
     function()
-      tree:EditLabel(addItem(tree:GetSelection(), empty, false))
+      tree:EditLabel(addItem(tree:GetSelection(), empty, image.FILEOTHER))
     end)
   tree:Connect(ID_NEWDIRECTORY, wx.wxEVT_COMMAND_MENU_SELECTED,
     function()
-      tree:EditLabel(addItem(tree:GetSelection(), empty, true))
+      tree:EditLabel(addItem(tree:GetSelection(), empty, image.DIRECTORY))
     end)
   tree:Connect(ID_RENAMEFILE, wx.wxEVT_COMMAND_MENU_SELECTED,
     function() tree:EditLabel(tree:GetSelection()) end)
@@ -744,15 +706,6 @@ local function treeSetConnectorsAndIcons(tree)
         event:Allow()
       end
     end)
-  
-  tree:Connect(wx.wxEVT_COMMAND_TREE_DELETE_ITEM,
-    function (event)
-      local item = event:GetItem()
-      filetree.projtreeData[item:GetValue()] = nil
-    end)
-  
-  
-  
   tree:Connect(wx.wxEVT_COMMAND_TREE_END_DRAG,
     function (event)
       local itemdst = event:GetItem()

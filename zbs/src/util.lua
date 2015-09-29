@@ -322,11 +322,8 @@ function FileRead(fname, length, callback)
     end
     return true, wx.wxSysErrorMsg()
   end
-  if not length then
-      length = file:SeekEnd()
-      file:Seek(0)
-  end
-  local _, content = file:Read(length)
+
+  local _, content = file:Read(length or wx.wxFileSize(fname))
   file:Close()
   return content, wx.wxSysErrorMsg()
 end
