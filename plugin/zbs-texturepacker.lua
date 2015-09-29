@@ -1,6 +1,7 @@
 
-local ProjectManager = require("zbs-moai.texture-packer.texturepackerproject")
-package.path =  package.path .. ';zbs-moai/texture-packer/?.lua'
+package.path =  package.path .. ';packages/zbs-texturepacker/lib/?.lua'
+local ProjectManager = require("packages.zbs-texturepacker.lib.texturepackerproject")
+
 local textureMapperMenuId = ID("zbs-moai.texturemappermenu")
 local textureMapperRemoveMenuId = ID("zbs-moai.texturemappermenuremove")
 local texturePackerConfigId = ID("zbs-moai.textureMapperConfig")
@@ -120,17 +121,16 @@ local function showConfig()
   
   updateTreeImages()
   ide.filetree.projtreeCtrl:Refresh()
-  --DisplayOutputLn("Show config now")
 end
 
 local oldIsDirFunc
 local oldExpanderFunc
 
 local function onRegister () 
-   local ico = wx.wxBitmap("zbs-moai/res/TEXTUREATLAS.png")
+   local ico = wx.wxBitmap("packages/zbs-texturepacker/res/TEXTUREATLAS.png")
    TEXTUREATLAS = ide.filetree.imglist:Add(ico)
    
-   ico = wx.wxBitmap("zbs-moai/res/TEXTUREATLASCONF.png")
+   ico = wx.wxBitmap("packages/zbs-texturepacker/res/TEXTUREATLASCONF.png")
    TEXTUREATLASCONF = ide.filetree.imglist:Add(ico)
    
    --patch tree
@@ -172,11 +172,11 @@ local function onRegister ()
 end
 
 return {
-  name = "GDX Texture Packer",
+  name = "ZBS Texture Packer",
   description = "Integrates libgdx TexturePacker with ZBS",
   author = "David Pershouse",
   version = 0.1,
-  dependencies = 0.51,
+  dependencies = 1.10,
   onRegister = onRegister,
   onMenuFiletree = onMenuFiletree,
   onProjectPreLoad = onProjectPreLoad,
