@@ -291,21 +291,21 @@ function Project:launchConfigEditor(name)
   end
   
   local settingsDialog = require("texturepackerdialog")(inputSettings, self:getCombinedConfig(name))
-  local result = settingsDialog.TexturePackerSettings:ShowModal()
+  local result = settingsDialog:ShowModal()
   if result == 0 then
     
-    local outputSettings = settingsDialog.GetOutputSettings()
+    local outputSettings = settingsDialog:GetOutputSettings()
     --patch outputfolder to be relative
     outputSettings.OutputFolder = self:makeRelative(outputSettings.OutputFolder)
     self.TextureAtlasDirs[textureAtlasFolder] = outputSettings
     self:saveConfig()
     
-    local packerSettings = settingsDialog.GetPackerSettings()
+    local packerSettings = settingsDialog:GetPackerSettings()
     self:savePackerConfig(name, packerSettings)
     
   end
   
-  settingsDialog.TexturePackerSettings:Destroy()
+  settingsDialog:Destroy()
   return result == 0
 end
 

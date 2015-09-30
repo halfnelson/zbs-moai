@@ -31,9 +31,26 @@ function Binder.setFilePicker(var, widget)
   end
 end
 
+function Binder.setDirPicker(var, widget)
+  if notEmpty(var) then
+    widget:SetPath(var)
+  end
+end
+
 function Binder.setCheckbox(var, widget)
   widget:SetValue(var and true or false)
 end
+
+function Binder.setText(var, widget)
+  if notEmpty(var) then
+    widget:SetValue(var)
+  end
+end
+
+function Binder.getText(widget)
+  return widget:GetValue()
+end
+
 
 function Binder.getChoice(widget)
   return widget:GetStringSelection()
@@ -54,6 +71,11 @@ end
 function Binder.getFilePicker(widget)
   return widget:GetPath()
 end
+
+function Binder.getDirPicker(widget)
+  return widget:GetPath()
+end
+
 
 
 function Binder:addBinding(name, widget, setter, getter)
@@ -78,6 +100,14 @@ end
 
 function Binder:bindFilePicker(name, widget)
   self:addBinding(name, widget, self.setFilePicker, self.getFilePicker)
+end
+
+function Binder:bindDirPicker(name, widget)
+  self:addBinding(name, widget, self.setDirPicker, self.getDirPicker)
+end
+
+function Binder:bindText(name, widget)
+  self:addBinding(name, widget, self.setText, self.getText)
 end
 
 
